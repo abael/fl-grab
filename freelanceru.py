@@ -19,6 +19,9 @@ class RSS:
         self.grab = Grab()
         self.grab.setup(
                 log_dir=options.log_dir,
+                headers={
+                        'Accept-Charset': 'utf-8'
+                    },
                 url=url
             )
 
@@ -26,7 +29,7 @@ class RSS:
         self.grab.request()
         tree = fromstring(self.grab.response.body)
         items = tree.xpath('/rss/channel/item/*')
-        items = map(str, items)
+        items = map(lambda e: e.text.encode('utf-8'), items)
         items = zip(*[items[i::6] for i in range(6)])
         for item in items:
             project = {
