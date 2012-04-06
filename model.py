@@ -40,7 +40,7 @@ class Category(Entity):
         return [self.name] + (self.parent.path() if self.parent else [])
 
     def __repr__(self):
-        return '<Category %s>' % ('/'.join(self.path()))
+        return '<Category %s>' % ('>'.join(self.path()))
 
 
 class Project(Entity):
