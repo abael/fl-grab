@@ -187,8 +187,8 @@ if __name__ == '__main__':
     options, args = parser.parse_args()
     if options.grab:
         freelanceru = FreeLanceRu(
-                pages_count=options.pages_count,
-                thread_number=options.threads_count
+                pages_count=int(options.pages_count),
+                thread_number=int(options.threads_count)
             )
         freelanceru.run()
     else:
