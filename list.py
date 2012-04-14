@@ -4,7 +4,6 @@
 import sys
 from optparse import OptionParser
 
-import options
 import model
 
 
