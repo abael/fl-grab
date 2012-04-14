@@ -2,16 +2,20 @@
 # -*- coding: utf-8 -*-
 
 import sys
-#import time
 import datetime
 
 from elixir import session
 from grab import Grab
 from grab.spider import Spider, Task
-#from lxml.objectify import fromstring
+from lxml.html import fromstring
 
-import options
 import model
+
+
+additional_headers = {
+         'Accept-Charset': 'utf-8',
+         'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)'
+    }
 
 
 class FreeLanceRu(Spider):
@@ -23,12 +27,8 @@ class FreeLanceRu(Spider):
         super(FreeLanceRu, self).__init__(*args, **kwargs)
 
     def prepare(self):
-        headers = {
-                 'Accept-Charset': 'utf-8',
-                 'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)'
-            }
         self.grab = Grab()
-        self.grab.setup(headers=headers)
+        self.grab.setup(headers=additional_headers)
 
     def get_grab(self, url=None):
         grab = self.grab.clone()
@@ -68,23 +68,26 @@ class FreeLanceRu(Spider):
                 )
 
     def task_project(self, grab, task):
-        url = FreeLanceRu.PROJECT_BY_PID % (task.pid)
-
+        project = None
         if grab.xpath_exists('//*[@class="contest-view"]'):
-            #print u'%s - конкурс' % (url)
-            return 
-        if grab.xpath_exists('//*[@class="pay-prjct"]'):
-            #print u'%s - платный проект' % (url)
-            return
+            project = self.parse_contest_view(grab, task)
+        elif grab.xpath_exists('//*[@class="pay-prjct"]'):
+            project = self.parse_pay_project(grab, task)
+        else:
+            project = self.parse_project(grab, task)
 
+        if project:
+            self.check_project(project)
+
+    def parse_project(self, grab, task):
         project = {}
-
-        project['url'] = url
-
+        #
+        project['url'] = FreeLanceRu.PROJECT_BY_PID % (task.pid)
+        #
         name = grab.xpath('//h1[@class="prj_name"]/text()')
         name = name.strip().encode('utf-8')
-        project['name'] = name 
-
+        project['name'] = name
+        #
         date = grab.xpath('//*[@class="user-about-r"]/p/text()')
         date = date.split('[', 1)[0]
         date = date.strip().encode('utf-8')
@@ -93,38 +96,53 @@ class FreeLanceRu(Spider):
                 "%d.%m.%Y | %H:%M"
             )
         project['date'] = date
-
-        category = grab.xpath_list('//p[@class="crumbs"]/a/text()')
-        if not category:
-            category = grab.xpath('//p[@class="crumbs"]/text()')
-            category = category.split(': ', 1)[1]
-            category = category.split(', ', 1)[0]
-            category = category.split(' / ')
-            category = map(lambda a: a.strip().encode('utf-8'), category)
+        #
+        category = grab.rex(
+                u'<p class="crumbs">Разделы: &#160;&#160; (.*?)(, |</p>)'
+            )
+        category = category.group(1)
+        items = fromstring(category).xpath('./a/text()')
+        if not items:
+            items = category.split(' / ')
+        category = items
+        category = map(lambda a: a.strip().encode('utf-8'), category)
         project['category'] = category
-
+        #
         description = grab.xpath('//*[@class="prj_text"]/text()')
         description = description.encode('utf-8')
         project['description'] = description
+        #
+        project['type'] = 'simple'
+        #
+        return project
 
-        self.check_project(project)
+    def parse_contest_view(self, grab, task):
+        project = {}
+        project['url'] = FreeLanceRu.PROJECT_BY_PID % (task.pid)
+        #project['type'] = model.project_contest
+        project['type'] = 'contest'
+        return project
+
+    def parse_pay_project(self, grab, task):
+        project = {}
+        project['url'] = FreeLanceRu.PROJECT_BY_PID % (task.pid)
+        project['type'] = 'pay'
+        #project['type'] = model.project_pay
+        return project
 
     def check_project(self, project):
         if model.Project.query.filter_by(url=project['url']).first():
             return
-        category = self.get_category(project['category'])
-        if not category:
-            print 'Ошибка: для проекта %s не найдена категория "%s"' % (
-                    project['url'],
-                    '<'.join(project['category'])
-                )
-            return
+        category = None
+        if 'category' in project:
+            category = self.get_category(project['category'])
         model.Project(
-                name=project['name'],
+                name=project.get('name', None),
                 url=project['url'],
-                description=project['description'],
+                description=project.get('description', None),
+                project_type=project['type'],
                 category=category,
-                date=project['date'],
+                date=project.get('date', None),
                 site=model.free_lance_ru
             )
         session.commit()
@@ -132,7 +150,7 @@ class FreeLanceRu(Spider):
     def get_category(self, path):
         path.reverse()
         category = None
-        while len(path):
+        while path:
             category = model.Category.query.filter_by(
                     name=path.pop(),
                     parent=category,

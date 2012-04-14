@@ -49,6 +49,8 @@ class Project(Entity):
     description = Field(LONGTEXT)
     date = Field(DateTime)
 
+    project_type = Field(Enum('simple', 'pay', 'contest'))
+
     category = ManyToOne('Category')
 
     site = ManyToOne('Site')

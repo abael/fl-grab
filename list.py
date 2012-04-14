@@ -12,6 +12,7 @@ def print_projects(start=None, count=None, show_url=False,
                    show_date=False, show_description=False,
                    enumeration=False):
     projects = model.Project.query
+    projects = projects.filter_by(project_type='simple')
     projects = projects.order_by(model.Project.id.desc())
     if start:
         projects = projects.offset(start)
