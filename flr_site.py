@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+from optparse import OptionParser
 import datetime
 
 from elixir import session
@@ -119,7 +120,6 @@ class FreeLanceRu(Spider):
     def parse_contest_view(self, grab, task):
         project = {}
         project['url'] = FreeLanceRu.PROJECT_BY_PID % (task.pid)
-        #project['type'] = model.project_contest
         project['type'] = 'contest'
         return project
 
@@ -127,7 +127,6 @@ class FreeLanceRu(Spider):
         project = {}
         project['url'] = FreeLanceRu.PROJECT_BY_PID % (task.pid)
         project['type'] = 'pay'
-        #project['type'] = model.project_pay
         return project
 
     def check_project(self, project):
@@ -159,7 +158,39 @@ class FreeLanceRu(Spider):
             category = category.first()
         return category
 
-freelanceru = FreeLanceRu(pages_count=5, thread_number=5)
-freelanceru.run()
 
-sys.exit()
+if __name__ == '__main__':
+    parser = OptionParser()
+    parser.add_option(
+            '-g',
+            '--grab',
+            action="store_true",
+            dest="grab",
+            help=u'произвести парсинг сайта'
+        )
+    parser.add_option(
+            '-t',
+            '--threads-count',
+            action="store",
+            dest='threads_count',
+            default=3,
+            help=u'количество потоков'
+        )
+    parser.add_option(
+            '-p',
+            '--pages-count',
+            action="store",
+            dest='pages_count',
+            default=5,
+            help=u'количество страниц для извлечения ссылок'
+        )
+    options, args = parser.parse_args()
+    if options.grab:
+        freelanceru = FreeLanceRu(
+                pages_count=options.pages_count,
+                thread_number=options.threads_count
+            )
+        freelanceru.run()
+    else:
+        parser.print_help()
+    sys.exit()

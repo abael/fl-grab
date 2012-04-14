@@ -4,8 +4,6 @@
 from elixir import *
 from sqlalchemy.dialects.mysql import LONGTEXT
 
-import options
-
 
 class Site(Entity):
     url = Field(String(256), unique=True)
@@ -71,12 +69,23 @@ def get_or_create(model, **kwargs):
         return model(**kwargs)
 
 
-metadata.bind = options.database_binding
-metadata.bind.echo = options.database_echo
+def drop_projects():
+    Project.query.delete()
+
+
+def drop_database():
+    drop_all()
+    create_all()
+
+
+def create_database():
+    create_all()
+
+
+metadata.bind = 'mysql://root:654321@localhost/flgrab'
+metadata.bind.echo = False
 
 setup_all()
-create_all()
-
 
 free_lance_ru = get_or_create(Site, url='http://free-lance.ru/')
 weblancer_net = get_or_create(Site, url='http://weblancer.net/')
